@@ -17,25 +17,48 @@ public class CarController : MonoBehaviour
     [Header("Suspension Settings")]
     public float suspensionRestDistance = 0.2f;
     public float springStrength = 20000f;
-    public float springDamper = 3000f; //force that resists spring movement
+    public float springDamper = 3000f;
     public float wheelRadius = 0.375f;
+
+    [Header("Gas/Brake Settings")]
+    public float maxSpeed = 60f;
+    public float maxGasTorque = 2000f;
+    public float maxBrakeTorque = 4000f;
+    public AnimationCurve powerCurve;
+
+    [Header("Wheel Drive Settings")]
+    public bool FLWheelPowered = false;
+    public bool FRWheelPowered = false; 
+    public bool RLWheelPowered = true;
+    public bool RRWheelPowered = true;
 
     private Rigidbody carRigidbody;
 
     void Start()
     {
         carRigidbody = GetComponent<Rigidbody>();
+        
+        //create default power curve if not set
+        if (powerCurve.keys.Length == 0)
+        {
+            powerCurve = AnimationCurve.EaseInOut(0f, 1f, 1f, 0.5f);
+        }
     }
 
     void Update()
     {
-        DoSuspension(FLWheel, FLTireMesh);
-        DoSuspension(FRWheel, FRTireMesh);
-        DoSuspension(RLWheel, RLTireMesh);
-        DoSuspension(RRWheel, RRTireMesh);
+        //get input
+        float accelInput = Input.GetAxis("Vertical");
+        float brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
+
+        //do suspension and acceleration for each wheel
+        DoWheelPhysics(FLWheel, FLTireMesh, FLWheelPowered, accelInput, brakeInput);
+        DoWheelPhysics(FRWheel, FRTireMesh, FRWheelPowered, accelInput, brakeInput);
+        DoWheelPhysics(RLWheel, RLTireMesh, RLWheelPowered, accelInput, brakeInput);
+        DoWheelPhysics(RRWheel, RRTireMesh, RRWheelPowered, accelInput, brakeInput);
     }
 
-    void DoSuspension(Transform wheel, Transform tireMesh)
+    void DoWheelPhysics(Transform wheel, Transform tireMesh, bool isPowered, float accelInput, float brakeInput)
     {
         
         //trace ray from the center of the wheel to the ground
@@ -65,11 +88,38 @@ public class CarController : MonoBehaviour
             //apply the total force
             Vector3 forceVector = Vector3.up * totalForce;
             carRigidbody.AddForceAtPosition(forceVector, wheel.position);
+
+            //gas/brake physics
+            DoGasBrake(wheel, isPowered, accelInput, brakeInput);
         }
         
         //tire viusals need to be updated manually
         UpdateTireVisual(wheel, tireMesh, suspensionLength);
     }
+
+    void DoGasBrake(Transform wheel, bool isPowered, float accelInput, float brakeInput)
+    {
+        
+        Vector3 dir = wheel.right;
+
+        //get car speed 
+        float carSpeed = Vector3.Dot(dir, carRigidbody.linearVelocity);
+        float normalizedSpeed = Mathf.Clamp01(Mathf.Abs(carSpeed) / maxSpeed);
+
+        //apply acceleration if this wheel is powered
+        if (isPowered)
+        {
+            float availableTorque = powerCurve.Evaluate(normalizedSpeed) * maxGasTorque * accelInput;
+            carRigidbody.AddForceAtPosition(dir * availableTorque, wheel.position);
+        }
+
+        //apply brake
+        Vector3 brakeDirection = carSpeed > 0 ? -dir : dir;
+        float brakeForce = maxBrakeTorque * brakeInput;
+        carRigidbody.AddForceAtPosition(brakeDirection * brakeForce, wheel.position);
+
+    }
+
     
     void UpdateTireVisual(Transform wheel, Transform tireMesh, float suspensionLength)
     {
@@ -77,6 +127,6 @@ public class CarController : MonoBehaviour
         Vector3 tirePosition = wheel.position;
         tirePosition += (-transform.up) * suspensionLength;
         tireMesh.position = tirePosition;
-        
     }
+    
 }
