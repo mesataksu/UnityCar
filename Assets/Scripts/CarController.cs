@@ -19,7 +19,7 @@ public class CarController : MonoBehaviour
     public float springStrength = 20000f;
     public float springDamper = 3000f;
     public float wheelRadius = 0.375f;
-
+    
     [Header("Gas/Brake Settings")]
     public float maxSpeed = 60f;
     public float maxGasTorque = 2000f;
@@ -31,8 +31,21 @@ public class CarController : MonoBehaviour
     public bool FRWheelPowered = false; 
     public bool RLWheelPowered = true;
     public bool RRWheelPowered = true;
+    
+    [Header("Steering Settings")]
+    public float maxSteerAngle = 30f;
+    
+    [Header("Friction Settings")]
+    public float frictionCoefficient = 1.0f;
+    public float tireMass = 20f;
+    
+    private bool FLWheelSteers = true;      //front wheels steer
+    private bool FRWheelSteers = true;
+    private bool RLWheelSteers = false;     //rear wheels don't steer
+    private bool RRWheelSteers = false;
 
     private Rigidbody carRigidbody;
+    private float currentSteerAngle = 0f;
 
     void Start()
     {
@@ -49,17 +62,25 @@ public class CarController : MonoBehaviour
     {
         //get input
         float accelInput = Input.GetAxis("Vertical");
+        float steerInput = Input.GetAxis("Horizontal");
         float brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
 
-        //do suspension and acceleration for each wheel
-        DoWheelPhysics(FLWheel, FLTireMesh, FLWheelPowered, accelInput, brakeInput);
-        DoWheelPhysics(FRWheel, FRTireMesh, FRWheelPowered, accelInput, brakeInput);
-        DoWheelPhysics(RLWheel, RLTireMesh, RLWheelPowered, accelInput, brakeInput);
-        DoWheelPhysics(RRWheel, RRTireMesh, RRWheelPowered, accelInput, brakeInput);
+        currentSteerAngle = steerInput * maxSteerAngle;
+        
+        //do physics for each wheel
+        DoWheelPhysics(FLWheel, FLTireMesh, FLWheelPowered, FLWheelSteers, accelInput, brakeInput);
+        DoWheelPhysics(FRWheel, FRTireMesh, FRWheelPowered, FRWheelSteers, accelInput, brakeInput);
+        DoWheelPhysics(RLWheel, RLTireMesh, RLWheelPowered, RLWheelSteers, accelInput, brakeInput);
+        DoWheelPhysics(RRWheel, RRTireMesh, RRWheelPowered, RRWheelSteers, accelInput, brakeInput);
     }
 
-    void DoWheelPhysics(Transform wheel, Transform tireMesh, bool isPowered, float accelInput, float brakeInput)
+    void DoWheelPhysics(Transform wheel, Transform tireMesh, bool isPowered, bool canSteer, float accelInput, float brakeInput)
     {
+        if (canSteer)
+        {
+            //apply steering
+            wheel.localRotation = Quaternion.Euler(0, currentSteerAngle, 0);
+        }
         
         //trace ray from the center of the wheel to the ground
         Vector3 rayStart = wheel.position;
@@ -91,6 +112,8 @@ public class CarController : MonoBehaviour
 
             //gas/brake physics
             DoGasBrake(wheel, isPowered, accelInput, brakeInput);
+
+            DoFriction(wheel);
         }
         
         //tire viusals need to be updated manually
@@ -99,7 +122,7 @@ public class CarController : MonoBehaviour
 
     void DoGasBrake(Transform wheel, bool isPowered, float accelInput, float brakeInput)
     {
-        
+        //right is forward
         Vector3 dir = wheel.right;
 
         //get car speed 
@@ -119,7 +142,30 @@ public class CarController : MonoBehaviour
         carRigidbody.AddForceAtPosition(brakeDirection * brakeForce, wheel.position);
 
     }
+    
+    void DoFriction(Transform wheel)
+    {
+        
+        Vector3 tireWorldVel = carRigidbody.GetPointVelocity(wheel.position);
 
+        //right is forward
+        Vector3 forwardDir = wheel.right;
+        Vector3 sidewaysDir = wheel.forward; 
+        float forwardVel = Vector3.Dot(forwardDir, tireWorldVel);
+        float sidewaysVel = Vector3.Dot(sidewaysDir, tireWorldVel);
+
+        //resist forward velocity
+        float forwardVelChange = -forwardVel * frictionCoefficient;
+        float forwardAccel = forwardVelChange / Time.fixedDeltaTime;
+        Vector3 forwardForce = forwardDir * forwardAccel * tireMass;
+
+        //resist sideways velocity
+        float sidewaysVelChange = -sidewaysVel * frictionCoefficient;
+        float sidewaysAccel = sidewaysVelChange / Time.fixedDeltaTime;
+        Vector3 sidewaysForce = sidewaysDir * sidewaysAccel * tireMass;
+        
+        carRigidbody.AddForceAtPosition(forwardForce + sidewaysForce, wheel.position);
+    }
     
     void UpdateTireVisual(Transform wheel, Transform tireMesh, float suspensionLength)
     {
