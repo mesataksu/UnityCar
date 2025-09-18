@@ -1,4 +1,5 @@
 using UnityEngine;
+using Unity.Cinemachine;
 
 public class CarController : MonoBehaviour
 {
@@ -39,6 +40,17 @@ public class CarController : MonoBehaviour
     public float frictionCoefficient = 1.0f;
     public float tireMass = 20f;
     
+    [Header("Cinemachine Cameras")]
+    public CinemachineCamera backCamera;
+    public CinemachineCamera rightCamera;
+    public CinemachineCamera leftCamera;
+    
+    [Header("Camera Animation")]
+    public float cameraAnimationSpeed = 1f;
+    private Vector3 backCameraOriginalPos;
+    private Vector3 rightCameraOriginalPos;
+    private Vector3 leftCameraOriginalPos;
+    
     private bool FLWheelSteers = true;      //front wheels steer
     private bool FRWheelSteers = true;
     private bool RLWheelSteers = false;     //rear wheels don't steer
@@ -46,10 +58,17 @@ public class CarController : MonoBehaviour
 
     private Rigidbody carRigidbody;
     private float currentSteerAngle = 0f;
+    
+    private float currentAcceleration = 0f;
+    private float lastVelocity = 0f;
 
     void Start()
     {
         carRigidbody = GetComponent<Rigidbody>();
+        
+        backCameraOriginalPos = backCamera.transform.localPosition;
+        rightCameraOriginalPos = rightCamera.transform.localPosition;
+        leftCameraOriginalPos = leftCamera.transform.localPosition;
         
         //create default power curve if not set
         if (powerCurve.keys.Length == 0)
@@ -66,6 +85,9 @@ public class CarController : MonoBehaviour
         float brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
 
         currentSteerAngle = steerInput * maxSteerAngle;
+        
+        CalculateAcceleration();
+        AnimateCamera(accelInput, brakeInput);
         
         //do physics for each wheel
         DoWheelPhysics(FLWheel, FLTireMesh, FLWheelPowered, FLWheelSteers, accelInput, brakeInput);
@@ -173,6 +195,55 @@ public class CarController : MonoBehaviour
         Vector3 tirePosition = wheel.position;
         tirePosition += (-transform.up) * suspensionLength;
         tireMesh.position = tirePosition;
+    }
+    
+    void AnimateCamera(float accelInput, float brakeInput)
+    {
+        float targetXOffset = 0f;
+    
+        if (currentAcceleration > 1f)
+            targetXOffset = -0.5f;
+        else if (currentAcceleration < -1f)
+            targetXOffset = 0.25f;
+        
+        if (currentSteerAngle == 0)
+        {
+            SetCameraPriorities(backCamera, rightCamera, leftCamera);
+            AnimateCameraPosition(backCamera, backCameraOriginalPos, targetXOffset);
+        }
+        else if (currentSteerAngle > 0)
+        {
+            SetCameraPriorities(rightCamera, backCamera, leftCamera);
+            AnimateCameraPosition(rightCamera, rightCameraOriginalPos, targetXOffset);
+        }
+        else
+        {
+            SetCameraPriorities(leftCamera, backCamera, rightCamera);
+            AnimateCameraPosition(leftCamera, leftCameraOriginalPos, targetXOffset);
+        }
+    }
+
+    void AnimateCameraPosition(CinemachineCamera camera, Vector3 originalPos, float xOffset)
+    {
+        Vector3 targetPos = originalPos + new Vector3(xOffset, 0, 0);
+        camera.transform.localPosition = Vector3.Lerp(camera.transform.localPosition, targetPos, Time.deltaTime * cameraAnimationSpeed);
+    }
+    void SetCameraPriorities(CinemachineCamera active, CinemachineCamera passive1, CinemachineCamera passive2)
+    {
+        active.Priority = 1;
+        passive1.Priority = 0;
+        passive2.Priority = 0;
+    }
+    
+    void CalculateAcceleration()
+    {
+        Vector3 forwardDir = transform.right;
+        float currentVelocity = Vector3.Dot(carRigidbody.linearVelocity, forwardDir);
+        
+        currentAcceleration = (currentVelocity - lastVelocity) / Time.deltaTime;
+        lastVelocity = currentVelocity;
+        
+        Debug.Log($"Acceleration: {currentAcceleration:F2}, Velocity: {currentVelocity:F2}");
     }
     
 }

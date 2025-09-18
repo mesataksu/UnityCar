@@ -872,8 +872,8 @@ MonoBehaviour:
   springDamper: 1000
   wheelRadius: 0.375
   maxSpeed: 20
-  maxGasTorque: 2000
-  maxBrakeTorque: 4000
+  maxGasTorque: 3000
+  maxBrakeTorque: 6000
   powerCurve:
     serializedVersion: 2
     m_Curve:
@@ -948,7 +948,7 @@ MonoBehaviour:
   RLWheelPowered: 1
   RRWheelPowered: 1
   maxSteerAngle: 30
-  frictionCoefficient: 0.2
+  frictionCoefficient: 0.1
   tireMass: 20
 --- !u!1 &677025793
 GameObject:
