@@ -3,6 +3,9 @@ using Unity.Cinemachine;
 
 public class CarController : MonoBehaviour
 {
+    [Header("Player Control")]
+    public bool playerInCar = false;
+    
     [Header("Wheel Positions")]
     public Transform FLWheel;
     public Transform FRWheel;
@@ -61,6 +64,10 @@ public class CarController : MonoBehaviour
     
     private float currentAcceleration = 0f;
     private float lastVelocity = 0f;
+    
+    private float accelInput = 0f;
+    private float steerInput = 0f;
+    private float brakeInput = 0f;
 
     void Start()
     {
@@ -79,17 +86,37 @@ public class CarController : MonoBehaviour
 
     void Update()
     {
-        //get input
-        float accelInput = Input.GetAxis("Vertical");
-        float steerInput = Input.GetAxis("Horizontal");
-        float brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
 
-        currentSteerAngle = steerInput * maxSteerAngle;
-        
-        CalculateAcceleration();
-        AnimateCamera(accelInput, brakeInput);
-        
-        //do physics for each wheel
+        HandlePlayerInput();
+        HandlePhysicsAndVisuals();
+    }
+    
+    void HandlePlayerInput()
+    {
+        if (playerInCar)
+        {
+            // Get input from player
+            accelInput = Input.GetAxis("Vertical");
+            steerInput = Input.GetAxis("Horizontal");
+            brakeInput = Input.GetKey(KeyCode.Space) ? 1f : 0f;
+            
+            currentSteerAngle = steerInput * maxSteerAngle;
+            
+            CalculateAcceleration();
+            AnimateCamera(accelInput, brakeInput);
+        }
+        else
+        {
+            accelInput = 0f;
+            steerInput = 0f;
+            brakeInput = 0f;
+            currentSteerAngle = 0f;
+        }
+    }
+    
+    void HandlePhysicsAndVisuals()
+    {
+        //physics always runs regardless of player presence
         DoWheelPhysics(FLWheel, FLTireMesh, FLWheelPowered, FLWheelSteers, accelInput, brakeInput);
         DoWheelPhysics(FRWheel, FRTireMesh, FRWheelPowered, FRWheelSteers, accelInput, brakeInput);
         DoWheelPhysics(RLWheel, RLTireMesh, RLWheelPowered, RLWheelSteers, accelInput, brakeInput);
@@ -132,13 +159,14 @@ public class CarController : MonoBehaviour
             Vector3 forceVector = Vector3.up * totalForce;
             carRigidbody.AddForceAtPosition(forceVector, wheel.position);
 
-            //gas/brake physics
+            //gas/brake physics (will be 0 when player not in car)
             DoGasBrake(wheel, isPowered, accelInput, brakeInput);
 
+            //friction always applied
             DoFriction(wheel);
         }
         
-        //tire viusals need to be updated manually
+        //tire visuals always updated
         UpdateTireVisual(wheel, tireMesh, suspensionLength);
     }
 
@@ -162,12 +190,10 @@ public class CarController : MonoBehaviour
         Vector3 brakeDirection = carSpeed > 0 ? -dir : dir;
         float brakeForce = maxBrakeTorque * brakeInput;
         carRigidbody.AddForceAtPosition(brakeDirection * brakeForce, wheel.position);
-
     }
     
     void DoFriction(Transform wheel)
     {
-        
         Vector3 tireWorldVel = carRigidbody.GetPointVelocity(wheel.position);
 
         //right is forward
@@ -228,6 +254,7 @@ public class CarController : MonoBehaviour
         Vector3 targetPos = originalPos + new Vector3(xOffset, 0, 0);
         camera.transform.localPosition = Vector3.Lerp(camera.transform.localPosition, targetPos, Time.deltaTime * cameraAnimationSpeed);
     }
+    
     void SetCameraPriorities(CinemachineCamera active, CinemachineCamera passive1, CinemachineCamera passive2)
     {
         active.Priority = 1;
@@ -246,4 +273,16 @@ public class CarController : MonoBehaviour
         Debug.Log($"Acceleration: {currentAcceleration:F2}, Velocity: {currentVelocity:F2}");
     }
     
+    // PUBLIC METHODS FOR PLAYER ENTRY/EXIT
+    public void PlayerEnterCar()
+    {
+        playerInCar = true;
+        Debug.Log("Player entered car");
+    }
+    
+    public void PlayerExitCar()
+    {
+        playerInCar = false;
+        Debug.Log("Player exited car");
+    }
 }
