@@ -4,14 +4,13 @@ public class CarManager : MonoBehaviour
 {
     [Header("References")] public FPSController player;
     public CarController currentCar;
-
-    private bool playerInCar = false;
+    
     private Vector3 playerExitPosition;
 
 
     void Update()
     {
-        if (playerInCar && Input.GetKeyDown(KeyCode.F))
+        if (currentCar.playerInCar && Input.GetKeyDown(KeyCode.F))
         {
             ExitCar();
         }
@@ -20,9 +19,8 @@ public class CarManager : MonoBehaviour
     public void EnterCar(FPSController playerController, CarController car)
     {
         currentCar = car;
-        playerInCar = true;
 
-        car.PlayerEnterCar();
+        car.playerInCar = true;
         playerController.gameObject.SetActive(false);
 
     }
@@ -30,13 +28,11 @@ public class CarManager : MonoBehaviour
     public void ExitCar()
     {
 
-        currentCar.PlayerExitCar();
+        currentCar.playerInCar = false;
 
         player.transform.position = currentCar.transform.position + Vector3.left * 2f + Vector3.up;
-
         player.gameObject.SetActive(true);
-
-        playerInCar = false;
+        
         currentCar = null;
 
     }

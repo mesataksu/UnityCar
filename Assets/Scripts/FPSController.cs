@@ -112,10 +112,4 @@ public class FPSController : MonoBehaviour
         isGrounded = true;
     }
     
-    // Gizmo to show interaction range in editor
-    void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, interactionRange);
-    }
 }

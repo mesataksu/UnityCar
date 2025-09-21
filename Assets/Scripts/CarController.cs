@@ -270,19 +270,6 @@ public class CarController : MonoBehaviour
         currentAcceleration = (currentVelocity - lastVelocity) / Time.deltaTime;
         lastVelocity = currentVelocity;
         
-        Debug.Log($"Acceleration: {currentAcceleration:F2}, Velocity: {currentVelocity:F2}");
     }
     
-    // PUBLIC METHODS FOR PLAYER ENTRY/EXIT
-    public void PlayerEnterCar()
-    {
-        playerInCar = true;
-        Debug.Log("Player entered car");
-    }
-    
-    public void PlayerExitCar()
-    {
-        playerInCar = false;
-        Debug.Log("Player exited car");
-    }
 }
