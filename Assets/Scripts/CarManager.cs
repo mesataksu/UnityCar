@@ -30,7 +30,7 @@ public class CarManager : MonoBehaviour
 
         currentCar.playerInCar = false;
 
-        player.transform.position = currentCar.transform.position + Vector3.left * 2f + Vector3.up;
+        player.transform.position = currentCar.transform.position + currentCar.transform.forward * 3f;
         player.gameObject.SetActive(true);
         
         currentCar = null;

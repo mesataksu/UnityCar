@@ -11,34 +11,40 @@ public class FPSController : MonoBehaviour
     [Header("Mouse Settings")]
     public float mouseSensitivity = 100f;
     public CinemachineCamera playerCamera;
-    
-    [Header("Car Interaction")]
-    public float interactionRange = 1f;
-    public CarManager carManager;
+
+    [Header("Physics Suspension")]
+    public float height = 1.5f;
+    public float springStrength = 100f;
+    public float springDamper = 10f;
 
     private Rigidbody rb;
     private float xRotation = 0f;
+    private float yRotation = 0f;
     private bool isGrounded = true;
+    
+    private Vector3 downDir = Vector3.down;
+    private RaycastHit rayHit;
+    private bool rayDidHit;
 
     void Start()
     {
         rb = GetComponent<Rigidbody>();
-        rb.freezeRotation = true;
         
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         
+        yRotation = transform.eulerAngles.y;
     }
 
     void Update()
     {
         HandleMouseLook();
         HandleJump();
-        HandleCarInteraction();
     }
 
     void FixedUpdate()
     {
+        HandleSuspension();
         HandleMovement();
     }
 
@@ -49,11 +55,53 @@ public class FPSController : MonoBehaviour
 
         xRotation -= mouseY;
         xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+        
+        yRotation += mouseX;
+        
+        playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+        rb.MoveRotation(Quaternion.Euler(0f, yRotation, 0f));
+    }
 
-        if (playerCamera != null)
-            playerCamera.transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
+    void HandleSuspension()
+    {
+        
+        Vector3 rayOrigin = transform.position;
+        Vector3 rayDir = transform.TransformDirection(downDir);
+        float rayDistance = height;
+        
+        rayDidHit = Physics.Raycast(rayOrigin, rayDir, out rayHit, rayDistance);
+        
+        if (rayDidHit)
+        {
+            Vector3 vel = rb.linearVelocity;
+            Vector3 otherVel = Vector3.zero;
+            Rigidbody hitBody = rayHit.rigidbody;
+            
+            if (hitBody != null)
+                otherVel = hitBody.linearVelocity;
+            
+            float rayDirVel = Vector3.Dot(rayDir, vel);
+            float otherDirVel = Vector3.Dot(rayDir, otherVel);
+            float relVel = rayDirVel - otherDirVel;
+            float x = rayHit.distance - height;
+            float springForce = (x * springStrength) - (relVel * springDamper);
+            
+            rb.AddForce(rayDir * springForce);
+            
+            if (hitBody != null)
+            {
+                hitBody.AddForceAtPosition(rayDir * -springForce, rayHit.point);
+            }
+            
+            isGrounded = rayHit.distance <= height;
 
-        transform.Rotate(Vector3.up * mouseX);
+            Debug.DrawRay(rayOrigin, rayDir * rayHit.distance, Color.green);
+        }
+        else
+        {
+            isGrounded = false;
+            Debug.DrawRay(rayOrigin, rayDir * rayDistance, Color.red);
+        }
     }
 
     void HandleMovement()
@@ -62,9 +110,20 @@ public class FPSController : MonoBehaviour
         float moveZ = Input.GetAxis("Vertical");
 
         Vector3 move = transform.right * moveX + transform.forward * moveZ;
-        Vector3 newPos = rb.position + move * moveSpeed * Time.fixedDeltaTime;
-
-        rb.MovePosition(newPos);
+        
+        Vector3 targetVelocity = move * moveSpeed;
+        Vector3 currentVelocity = new Vector3(rb.linearVelocity.x, 0, rb.linearVelocity.z);
+        Vector3 velocityDifference = targetVelocity - currentVelocity;
+        
+        if (moveX != 0 || moveZ != 0)
+        {
+            rb.linearDamping = 0f;
+            rb.AddForce(velocityDifference * rb.mass);
+        }
+        else if(isGrounded)
+        {
+            rb.linearDamping = 5f;
+        }
     }
 
     void HandleJump()
@@ -72,44 +131,7 @@ public class FPSController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
             rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            isGrounded = false;
         }
-    }
-    
-    void HandleCarInteraction()
-    {
-        
-        Collider[] nearbyObjects = Physics.OverlapSphere(transform.position, interactionRange);
-        
-        CarController nearestCar = null;
-        float nearestDistance = float.MaxValue;
-        
-        foreach (Collider col in nearbyObjects)
-        {
-            CarController car = col.GetComponent<CarController>();
-            if (car != null)
-            {
-                float distance = Vector3.Distance(transform.position, col.transform.position);
-                if (distance < nearestDistance)
-                {
-                    nearestDistance = distance;
-                    nearestCar = car;
-                }
-            }
-        }
-        
-        if (nearestCar != null)
-        {
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                carManager.EnterCar(this, nearestCar);
-            }
-        }
-    }
-
-    private void OnCollisionStay(Collision collision)
-    {
-        isGrounded = true;
     }
     
 }

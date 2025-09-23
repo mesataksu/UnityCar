@@ -5,6 +5,7 @@ public class CarController : MonoBehaviour
 {
     [Header("Player Control")]
     public bool playerInCar = false;
+    public CarManager carManager;
     
     [Header("Wheel Positions")]
     public Transform FLWheel;
@@ -213,6 +214,18 @@ public class CarController : MonoBehaviour
         Vector3 sidewaysForce = sidewaysDir * sidewaysAccel * tireMass;
         
         carRigidbody.AddForceAtPosition(forwardForce + sidewaysForce, wheel.position);
+    }
+    
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player"))
+        {
+            FPSController player = other.GetComponent<FPSController>();
+            if (player != null)
+            {
+                carManager.EnterCar(player, this);
+            }
+        }
     }
     
     void UpdateTireVisual(Transform wheel, Transform tireMesh, float suspensionLength)
