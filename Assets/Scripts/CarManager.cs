@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class CarManager : MonoBehaviour
 {
-    [Header("References")] public FPSController player;
+    [Header("References")] public PlayerController player;
     public CarController currentCar;
     
     private Vector3 playerExitPosition;
@@ -16,7 +16,7 @@ public class CarManager : MonoBehaviour
         }
     }
 
-    public void EnterCar(FPSController playerController, CarController car)
+    public void EnterCar(PlayerController playerController, CarController car)
     {
         currentCar = car;
 

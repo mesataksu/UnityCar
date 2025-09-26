@@ -220,10 +220,12 @@ public class CarController : MonoBehaviour
     {
         if (other.CompareTag("Player"))
         {
-            FPSController player = other.GetComponent<FPSController>();
-            if (player != null)
+            PlayerFollower playerFollower = other.GetComponent<PlayerFollower>();
+            if (playerFollower != null)
             {
-                carManager.EnterCar(player, this);
+                GameObject parent = playerFollower.transform.parent.gameObject;
+                PlayerController playerController = parent.GetComponent<PlayerController>();
+                carManager.EnterCar(playerController, this);
             }
         }
     }
